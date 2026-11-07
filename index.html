@@ -46,7 +46,7 @@ input{font:inherit}
 .arrow{width:62px;height:62px;border-radius:50%;background:var(--card2);display:grid;place-items:center;transition:transform .35s}
 .arrow svg{width:34px;height:34px}
 .timer{background:var(--card2);border-radius:12px;padding:5px 10px;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
-.dealer{font-size:12px;color:var(--muted);max-width:90px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dealer{font-size:13px;color:var(--text);max-width:110px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rounds{flex:1;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:22px;overflow-y:auto;min-height:120px;position:relative}
 .rrow{display:grid;grid-template-columns:1fr 1fr;position:relative}
 .rrow:active{background:var(--card2)}
@@ -142,7 +142,7 @@ input{font:inherit}
     <input class="inp" id="i0" inputmode="numeric" pattern="[0-9]*" placeholder="0" autocomplete="off">
   </div>
   <div class="mid">
-    <button class="arrow" id="arrow" aria-label="الموزّع"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></button>
+    <button class="arrow" id="arrow" aria-label="التوزيع"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15"/><path d="M13 6l6 6-6 6"/></svg></button>
     <div class="dealer" id="dealer"></div>
     <div class="timer" id="timer">00:00:00</div>
   </div>
@@ -195,8 +195,7 @@ input{font:inherit}
   <h2>الإعدادات<button class="x" data-close>✕</button></h2>
   <div class="lbl">أسماء الفريقين</div>
   <div class="row2"><input class="field" id="tn0" maxlength="14"><input class="field" id="tn1" maxlength="14"></div>
-  <div class="lbl">اللاعبون بترتيب الجلسة (اختياري — يظهر اسم الموزّع)</div>
-  <div class="row2" id="plGrid"></div>
+
   <div class="lbl" style="font-size:15px;color:var(--text);font-weight:700;margin-top:20px">قوانين الحساب</div>
   <div class="rules">
     <div class="rl"><span>نقاط الفوز<small>0 = بدون حد</small></span><input class="field num" id="rTarget" inputmode="numeric"></div>
@@ -215,7 +214,7 @@ input{font:inherit}
   <div class="toggle"><span>اهتزاز عند الإدخال</span><button class="sw" id="swVib"></button></div>
   <button class="primary" id="setSave">حفظ</button>
   <button class="danger" id="setClear">مسح كل البيانات</button>
-  <div class="note">اضغط على اسم الفريق في الأعلى لتغييره مباشرة. السهم في المنتصف يدور مع كل جولة ليشير إلى الموزّع، واضغط عليه لتغيير الموزّع يدوياً. اضغط على أي جولة في القائمة لتعديلها أو حذفها.</div>
+  <div class="note">اضغط على اسم الفريق في الأعلى لتغييره مباشرة. السهم في المنتصف يشير إلى الفريق الأقل نقاط لأن عليه التوزيع، وعند التعادل اضغط عليه لتحديد من يوزّع. اضغط على أي جولة في القائمة لتعديلها أو حذفها.</div>
 </div></div>
 
 <!-- History sheet -->
@@ -283,7 +282,8 @@ function computeWinner(){
 function vib(ms=12){if(S.settings.vib&&navigator.vibrate)navigator.vibrate(ms);}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1800);}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function dealerIdx(){return (G().dealerStart+G().rounds.length)%SEATS;}
+/* التوزيع على الفريق الأقل نقاط؛ عند التعادل يُحدد يدوياً بالضغط على السهم */
+function dealerTeam(){const t=totals();if(t[0]<t[1])return 0;if(t[1]<t[0])return 1;return G().tieDealer||0;}
 function render(){
   const g=G(),t=totals(),T=RL().target;
   for(const i of [0,1]){
@@ -293,9 +293,9 @@ function render(){
     $('i'+i).placeholder='0';
   }
   // arrow: rotates 90° per deal. RTL: team0 on right.
-  const d=dealerIdx();
-  $('arrow').style.transform=`rotate(${d*60}deg)`;
-  const name=g.players[d]; $('dealer').textContent=name?('الموزّع: '+name):'';
+  const d=dealerTeam();
+  $('arrow').style.transform=`rotate(${d===0?0:180}deg)`;
+  $('dealer').textContent='التوزيع على '+g.teams[d];
   const box=$('rounds');
   if(!g.rounds.length){box.innerHTML='<div class="empty">أدخل نقاط الجولة واضغط «احسب»<br>أو اضغط «احسب» وهي فاضية لتختار الطلب وجاب/طاح</div>';}
   else box.innerHTML=g.rounds.map((r,i)=>{const c=r.calc,tag=t=>c&&c.buyer===t?`<small class="${c.made?'ok':'no'}">طلب ${BID_NAME[c.bid]} ${c.made?'✓':'✗'}</small>`:'';
@@ -348,7 +348,9 @@ for(const i of [0,1]){const el=$('n'+i);
   el.addEventListener('blur',()=>{G().teams[i]=el.value.trim()||(i?'لهم':'لنا');save();render();});}
 $('bUndo').onclick=()=>{const g=G();if(!g.rounds.length){toast('لا توجد جولات');return;}g.rounds.pop();afterChange(false);toast('تم حذف آخر جولة');vib();};
 $('bNew').onclick=()=>{const g=G();if(g.rounds.length&&g.winner==null&&!confirm('بدء صكة جديدة؟ ستُحفظ الحالية في السجل.'))return;archive();toast('صكة جديدة');};
-$('arrow').onclick=()=>{G().dealerStart=(G().dealerStart+1)%SEATS;save();render();vib();};
+$('arrow').onclick=()=>{const t=totals();
+  if(t[0]!==t[1]){toast('التوزيع على الفريق الأقل نقاط');return;}
+  G().tieDealer=1-(G().tieDealer||0);save();render();vib();};
 $('rounds').onclick=e=>{const row=e.target.closest('.rrow');if(!row)return;const i=+row.dataset.i,r=G().rounds[i];
   if(r.calc) openCalc(i); else openEdit(i);};
 
@@ -406,8 +408,6 @@ $('winUndo').onclick=()=>{close('ovWin');G().rounds.pop();afterChange(false);};
 let tmpSet;
 $('bSettings').onclick=()=>{const g=G();tmpSet={...S.settings,rules:RL()};fillRules();
   $('tn0').value=g.teams[0];$('tn1').value=g.teams[1];
-  $('plGrid').innerHTML=Array.from({length:SEATS},(_,i)=>`<input class="field" id="pl${i}" maxlength="12" placeholder="لاعب ${i+1} (${esc(g.teams[i%2])})">`).join('');
-  for(let i=0;i<SEATS;i++)$('pl'+i).value=g.players[i]||'';
   seg('segTheme',tmpSet.theme);
   $('swWake').classList.toggle('on',!!tmpSet.wake);$('swVib').classList.toggle('on',!!tmpSet.vib);open('ovSet');};
 function fillRules(){const r=tmpSet.rules;
@@ -425,7 +425,6 @@ $('swWake').onclick=()=>{tmpSet.wake=!tmpSet.wake;$('swWake').classList.toggle('
 $('swVib').onclick=()=>{tmpSet.vib=!tmpSet.vib;$('swVib').classList.toggle('on',tmpSet.vib);};
 $('setSave').onclick=()=>{const g=G();
   g.teams=[$('tn0').value.trim()||'لنا',$('tn1').value.trim()||'لهم'];
-  for(let i=0;i<SEATS;i++)g.players[i]=$('pl'+i).value.trim();
   const r=tmpSet.rules;r.target=num('rTarget',54);r.bawnPts=num('rBawnPts',36);r.bawnFail=num('rBawnFail',18);
   S.settings=tmpSet;close('ovSet');afterChange(false);wake();};
 $('setClear').onclick=()=>{if(!confirm('مسح كل الصكات والسجل؟'))return;localStorage.removeItem(KEY);S=load();close('ovSet');render();tick();};
